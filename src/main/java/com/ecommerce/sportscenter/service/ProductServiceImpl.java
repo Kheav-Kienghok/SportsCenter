@@ -5,6 +5,9 @@ import com.ecommerce.sportscenter.entity.Product;
 import com.ecommerce.sportscenter.model.ProductResponse;
 import com.ecommerce.sportscenter.repository.ProductRepository;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -35,18 +38,25 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public List<ProductResponse> getAllProducts() {
+    public Page<ProductResponse> getAllProducts(Pageable pageable, Integer brandId, Integer typeId, String name) {
         log.info("Fetching all products");
+        Specification<Product> spec = Specification.where(null);
 
-        List<Product> products = productRepository.findAll();
-        // Map
-        List<ProductResponse> productResponses = products.stream()
-                .map(this::convertToProductResponse)
-                .collect(Collectors.toList());
+        if (brandId != null) {
+            spec = spec.and((root, criteriaQuery, criteriaBuilder) -> criteriaBuilder.equal(root.get("brand").get("id"), brandId));
+        }
+
+        if (typeId != null) {
+            spec = spec.and((root, criteriaQuery, criteriaBuilder) -> criteriaBuilder.equal(root.get("type").get("id"), typeId));
+        }
+
+        if (name != null && !name.isEmpty()) {
+            spec = spec.and((root, criteriaQuery, criteriaBuilder) -> criteriaBuilder.like(root.get("name"), "%" + name + "%"));
+        }
 
         log.info("Fetching all products completed");
+        return productRepository.findAll(spec, pageable).map(this::convertToProductResponse);
 
-        return productResponses;
     }
 
     private ProductResponse convertToProductResponse(Product product) {
